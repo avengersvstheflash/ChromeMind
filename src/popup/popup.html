@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChromeMind</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-content">
+        <h1>🧠 ChromeMind</h1>
+        <p class="tagline">Your AI Browser Companion</p>
+      </div>
+      <div class="status-indicator" id="aiStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking AI...</span>
+      </div>
+    </header>
+    
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="summarize">📄 Summarize</button>
+      <button class="tab-btn" data-tab="translate">🌐 Translate</button>
+      <button class="tab-btn" data-tab="improve">✨ Improve</button>
+      <button class="tab-btn" data-tab="chat">💬 Chat</button>
+      <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
+    </div>
+
+    <!-- Summarize Tab -->
+    <div class="tab-content active" id="summarize">
+      <div class="tab-header">
+        <h2>Page Summarization</h2>
+        <p>Get a quick summary of the current page</p>
+      </div>
+      <button id="summarizeBtn" class="action-btn primary">
+        <span class="btn-icon">🔍</span>
+        Summarize This Page
+      </button>
+      <div id="summaryResult" class="result-box"></div>
+    </div>
+    
+    <!-- Translate Tab -->
+    <div class="tab-content" id="translate">
+      <div class="tab-header">
+        <h2>Translation</h2>
+        <p>Translate text to any language</p>
+      </div>
+      <div class="input-group">
+        <label for="translateInput">Text to translate:</label>
+        <textarea id="translateInput" placeholder="Enter text or select text on the page..." rows="4"></textarea>
+      </div>
+      <div class="language-select">
+        <label for="targetLang">Translate to:</label>
+        <select id="targetLang">
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="ja">Japanese</option>
+          <option value="zh">Chinese</option>
+        </select>
+      </div>
+      <button id="translateBtn" class="action-btn primary">
+        <span class="btn-icon">🌍</span>
+        Translate
+      </button>
+      <div id="translateResult" class="result-box"></div>
+    </div>
+    
+    <!-- Improve Tab -->
+    <div class="tab-content" id="improve">
+      <div class="tab-header">
+        <h2>Text Improvement</h2>
+        <p>Rewrite and fix grammar</p>
+      </div>
+      <div class="input-group">
+        <label for="improveInput">Text to improve:</label>
+        <textarea id="improveInput" placeholder="Paste your text here..." rows="5"></textarea>
+      </div>
+      <div class="action-buttons">
+        <button id="proofreadBtn" class="action-btn secondary">
+          <span class="btn-icon">✏️</span>
+          Fix Grammar
+        </button>
+        <button id="rewriteBtn" class="action-btn secondary">
+          <span class="btn-icon">✨</span>
+          Rewrite
+        </button>
+      </div>
+      <div id="improveResult" class="result-box"></div>
+    </div>
+    
+    <!-- Chat Tab -->
+    <div class="tab-content" id="chat">
+      <div class="tab-header">
+        <h2>AI Chat</h2>
+        <p>Ask anything about this page</p>
+      </div>
+      <div class="chat-container" id="chatContainer">
+        <div class="chat-message assistant">
+          <strong>ChromeMind:</strong> Hello! I'm your AI companion. How can I help you today?
+        </div>
+      </div>
+      <div class="chat-input-container">
+        <textarea id="chatInput" placeholder="Ask me anything..." rows="2"></textarea>
+        <button id="chatSendBtn" class="action-btn primary">
+          <span class="btn-icon">📤</span>
+          Send
+        </button>
+      </div>
+      <button id="clrChatBtn" class="action-btn secondary" style="margin-top:10px;">
+        <span class="btn-icon">🗑️</span>
+        Clear Chat History
+      </button>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="settings">
+      <div class="tab-header">
+        <h2>⚙️ Personalization</h2>
+        <p>Customize ChromeMind to match your style</p>
+      </div>
+      <div class="settings-section">
+        <label for="apiKeyInput">Hugging Face API Key:</label>
+        <input type="password" id="apiKeyInput" placeholder="Enter your HF API key">
+        <small style="color: #999;">Your key is stored locally and never shared.</small>
+      </div>
+      <div class="settings-section">
+        <label for="aiNameInput">AI Assistant Name:</label>
+        <input type="text" id="aiNameInput" placeholder="ChromeMind" value="ChromeMind">
+      </div>
+      <div class="settings-section">
+        <label for="aiToneInput">Response Tone:</label>
+        <select id="aiToneInput">
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="friendly" selected>Friendly</option>
+          <option value="enthusiastic">Enthusiastic</option>
+        </select>
+      </div>
+      <div class="settings-section">
+        <label for="userName">Your Name (optional):</label>
+        <input type="text" id="userName" placeholder="Your name">
+      </div>
+      <div class="settings-section">
+        <label class="checkbox-label">
+          <input type="checkbox" id="contextMemoryToggle" checked>
+          <span>Remember browsing context</span>
+        </label>
+      </div>
+      <div class="settings-section">
+        <label class="checkbox-label">
+          <input type="checkbox" id="adaptiveResponseToggle" checked>
+          <span>Learn from my feedback</span>
+        </label>
+      </div>
+      <button id="saveSettingsBtn" class="action-btn primary">
+        <span class="btn-icon">💾</span>
+        Save Settings
+      </button>
+      <div id="settingsStatus" class="result-box"></div>
+      <div class="stats-section">
+        <h3>📊 Your Stats</h3>
+        <p>Summaries created: <strong id="summaryCount">0</strong></p>
+        <p>Translations made: <strong id="translateCount">0</strong></p>
+        <p>Texts improved: <strong id="improvementCount">0</strong></p>
+        <p>Chat messages: <strong id="chatCount">0</strong></p>
+      </div>
+      <button id="clearDataBtn" class="action-btn secondary" style="margin-top: 15px;">
+        <span class="btn-icon">🗑️</span>
+        Clear All Data
+      </button>
+    </div>
+
+    <footer>
+      <p class="footer-text">ChromeMind v1.0 | Privacy-First AI</p>
+    </footer>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
