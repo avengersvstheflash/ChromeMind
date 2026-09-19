@@ -1,388 +1,190 @@
-// src/popup/popup.js
-// FIXED: Uses background service worker for all LLM calls, proper message handling
-
 import { CONFIG } from '../config.js';
 
-// ====== Secure HTML Escape ======
-function escapeHTML(str) {
-  if (!str) return '';
-  return str.replace(/[&<>"']/g, m =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])
-  );
+const $ = id => document.getElementById(id);
+const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
+const send = request => new Promise((resolve, reject) => chrome.runtime.sendMessage(request, response => {
+  if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+  if (!response?.success) return reject(new Error(response?.error || 'ChromeMind request failed'));
+  resolve(response.result);
+}));
+
+let chatHistory = [];
+function resultText(result) { return typeof result === 'string' ? result : result?.text || ''; }
+
+function setStatus(text, online) {
+  const element = $('aiStatus');
+  element.classList.toggle('online', online);
+  element.classList.toggle('offline', !online);
+  element.querySelector('.status-text').textContent = text;
 }
 
-// ====== State ======
-let aiMode = 'unknown';
-let chatHistory = []; // For persistent, multi-turn chat
+async function updateAIStatus() {
+  try {
+    const state = await send({ action: 'getBackendStatus' });
+    if (state.local) setStatus('Local AI ready', true);
+    else if (['available', 'ready'].includes(state.geminiNano)) setStatus('Gemini Nano ready', true);
+    else if (state.cloud) setStatus('Cloud fallback configured', true);
+    else setStatus('No AI backend available', false);
+  } catch {
+    setStatus('Backend status unavailable', false);
+  }
+}
 
-// ====== Init ======
-document.addEventListener('DOMContentLoaded', () => {
-  setupTabs();
-  setupButtons();
-  loadSettings();
-  loadStats();
-  loadChatHistory();
-  updateAIStatus();
-});
-
-// ====== Tabs ======
 function setupTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      $(button.dataset.tab).classList.add('active');
     });
   });
 }
 
-// ====== Buttons ======
-function setupButtons() {
-  document.getElementById('summarizeBtn').addEventListener('click', handleSummarize);
-  document.getElementById('translateBtn').addEventListener('click', handleTranslate);
-  document.getElementById('proofreadBtn').addEventListener('click', handleProofread);
-  document.getElementById('rewriteBtn').addEventListener('click', handleRewrite);
-  document.getElementById('chatSendBtn').addEventListener('click', handleChat);
-  document.getElementById('clrChatBtn')?.addEventListener('click', clearChatHistory);
-  document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-  document.getElementById('clearDataBtn').addEventListener('click', clearAllData);
+function renderChat() {
+  $('chatContainer').innerHTML = chatHistory
+    .map(message => `<div class="chat-message ${message.role}"><strong>${message.role === 'user' ? 'You' : 'ChromeMind'}:</strong> ${escapeHTML(message.content)}</div>`)
+    .join('');
 }
 
-// ====== AI Detection/Status ======
-async function updateAIStatus() {
-  let status = document.getElementById('aiStatus');
-  let txt = status.querySelector('.status-text');
-
-  // Check if API key is configured
-  chrome.storage.local.get(['hf_api_key'], (data) => {
-    if (data.hf_api_key && data.hf_api_key.length > 0) {
-      aiMode = 'api';
-      status.classList.add('online');
-      status.classList.remove('offline');
-      txt.textContent = 'AI Ready (Cloud)';
-    } else {
-      aiMode = 'unknown';
-      status.classList.remove('online');
-      status.classList.add('offline');
-      txt.textContent = 'AI Unavailable (No API Key)';
-    }
-  });
-}
-
-// ====== Hybrid AI Helpers (now use background service worker) ======
-async function summarizeText(content) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'summarizeContent', content, title: document.title },
-      (response) => {
-        if (response?.success) {
-          resolve(response.result);
-        } else {
-          reject(new Error(response?.error || 'Summarization failed'));
-        }
-      }
-    );
-  });
-}
-
-async function translateText(text, targetLang) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'translateWithAI', text, targetLang },
-      (response) => {
-        if (response?.success) {
-          resolve(response.result);
-        } else {
-          reject(new Error(response?.error || 'Translation failed'));
-        }
-      }
-    );
-  });
-}
-
-async function proofreadText(text) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'proofreadText', text },
-      (response) => {
-        if (response?.success) {
-          resolve(response.result);
-        } else {
-          reject(new Error(response?.error || 'Proofreading failed'));
-        }
-      }
-    );
-  });
-}
-
-async function rewriteText(text) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'rewriteText', text },
-      (response) => {
-        if (response?.success) {
-          resolve(response.result);
-        } else {
-          reject(new Error(response?.error || 'Rewriting failed'));
-        }
-      }
-    );
-  });
-}
-
-async function chatWithAI(msg) {
-  chatHistory.push({ role: 'user', content: msg });
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      { action: 'chatMessage', messages: chatHistory },
-      (response) => {
-        if (response?.success) {
-          chatHistory.push({ role: 'assistant', content: response.result });
-          saveChatHistory();
-          resolve(response.result);
-        } else {
-          reject(new Error(response?.error || 'Chat failed'));
-        }
-      }
-    );
-  });
-}
-
-// ====== Chat History Persistence & UI ======
-function loadChatHistory() {
-  chrome.storage.local.get(['chatHistory'], (data) => {
-    chatHistory = data.chatHistory || [];
-    updateChatUI();
-  });
-}
-
-function saveChatHistory() {
-  chrome.storage.local.set({ chatHistory });
-}
-
-function clearChatHistory() {
-  if (!confirm("Clear all chat history?")) return;
-  chatHistory = [];
-  saveChatHistory();
-  updateChatUI();
-}
-
-function updateChatUI() {
-  let container = document.getElementById('chatContainer');
-  container.innerHTML = '';
-  chatHistory.forEach(msg => {
-    let cls = msg.role === "user" ? "user" : "assistant";
-    let name = msg.role === "user" ? "You" : "ChromeMind";
-    container.innerHTML += `<div class="chat-message ${cls}"><strong>${escapeHTML(name)}:</strong> ${escapeHTML(msg.content)}</div>`;
-  });
-  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-}
-
-// ====== Handlers (with loading + sanitization) ======
-async function handleSummarize() {
-  let btn = this, box = document.getElementById('summaryResult');
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Summarizing…';
-  box.innerHTML = '<div class="loading">Analyzing page content...</div>';
-
+async function summarize() {
+  const box = $('summaryResult');
   try {
-    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    let response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
-
-    if (!response.success) {
-      throw new Error(response.error || 'Could not extract page content');
-    }
-
-    let summary = await summarizeText(response.content);
-    box.innerHTML = `<strong>📄 Summary:</strong><p>${escapeHTML(summary)}</p><small>Page: ${escapeHTML(response.title)}</small>`;
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const page = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
+    if (!page?.success) throw new Error(page?.error || 'Could not extract page content');
+    const result = await send({ action: 'summarizeContent', content: page.content, title: page.title });
+    box.innerHTML = `<strong>📄 Summary:</strong><p>${escapeHTML(resultText(result))}</p><small>${escapeHTML(page.title)}</small>`;
     await incrementStat('summaries');
-  } catch (e) {
-    box.innerHTML = `<span class="error">Error: ${escapeHTML(e.message)}</span>`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '🔍 Summarize This Page';
+  } catch (exception) {
+    box.innerHTML = `<span class="error">Error: ${escapeHTML(exception.message)}</span>`;
   }
 }
 
-async function handleTranslate() {
-  let btn = this, input = document.getElementById('translateInput').value.trim();
-  let lang = document.getElementById('targetLang').value;
-  let box = document.getElementById('translateResult');
-
-  if (!input) {
-    box.innerHTML = `<span class="error">Please enter text to translate</span>`;
-    return;
-  }
-
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Translating…';
-  box.innerHTML = '<div class="loading">Translating...</div>';
-
+async function translate() {
+  const input = $('translateInput').value.trim();
+  if (!input) return $('translateResult').innerHTML = '<span class="error">Enter text to translate.</span>';
   try {
-    let text = await translateText(input, lang);
-    box.innerHTML = `<strong>🌐 Translation:</strong><p>${escapeHTML(text)}</p><small>Target: ${getLanguageName(lang)}</small>`;
+    const result = await send({ action: 'translateWithAI', text: input, targetLang: $('targetLang').value });
+    $('translateResult').innerHTML = `<strong>🌐 Translation:</strong><p>${escapeHTML(resultText(result))}</p>`;
     await incrementStat('translations');
-  } catch (e) {
-    box.innerHTML = `<span class="error">Error: ${escapeHTML(e.message)}</span>`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '🌍 Translate';
+  } catch (exception) {
+    $('translateResult').innerHTML = `<span class="error">Error: ${escapeHTML(exception.message)}</span>`;
   }
 }
 
-async function handleProofread() {
-  let btn = this, input = document.getElementById('improveInput').value.trim();
-  let box = document.getElementById('improveResult');
-
-  if (!input) {
-    box.innerHTML = `<span class="error">Please enter text to proofread</span>`;
-    return;
-  }
-
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Checking…';
-  box.innerHTML = '<div class="loading">Checking grammar...</div>';
-
+async function improve(action) {
+  const input = $('improveInput').value.trim();
+  if (!input) return $('improveResult').innerHTML = '<span class="error">Enter text to improve.</span>';
   try {
-    let text = await proofreadText(input);
-    box.innerHTML = `<strong>✏️ Corrected:</strong><p>${escapeHTML(text)}</p>`;
+    const result = await send({ action, text: input });
+    $('improveResult').innerHTML = `<p>${escapeHTML(resultText(result))}</p>`;
     await incrementStat('improvements');
-  } catch (e) {
-    box.innerHTML = `<span class="error">Error: ${escapeHTML(e.message)}</span>`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '✏️ Fix Grammar';
+  } catch (exception) {
+    $('improveResult').innerHTML = `<span class="error">Error: ${escapeHTML(exception.message)}</span>`;
   }
 }
 
-async function handleRewrite() {
-  let btn = this, input = document.getElementById('improveInput').value.trim();
-  let box = document.getElementById('improveResult');
-
-  if (!input) {
-    box.innerHTML = `<span class="error">Please enter text to rewrite</span>`;
-    return;
-  }
-
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Rewriting…';
-  box.innerHTML = '<div class="loading">Rewriting...</div>';
-
+async function chat() {
+  const input = $('chatInput');
+  const content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+  chatHistory.push({ role: 'user', content });
   try {
-    let text = await rewriteText(input);
-    box.innerHTML = `<strong>✨ Improved:</strong><p>${escapeHTML(text)}</p>`;
-    await incrementStat('improvements');
-  } catch (e) {
-    box.innerHTML = `<span class="error">Error: ${escapeHTML(e.message)}</span>`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '✨ Rewrite';
-  }
-}
-
-async function handleChat() {
-  let inputEl = document.getElementById('chatInput');
-  let msg = inputEl.value.trim();
-
-  if (!msg) return;
-
-  inputEl.value = '';
-  document.getElementById('chatContainer').innerHTML += `<div class="chat-message user"><strong>You:</strong> ${escapeHTML(msg)}</div>`;
-  document.getElementById('chatContainer').innerHTML += `<div class="chat-message assistant"><em>Thinking…</em></div>`;
-
-  try {
-    let reply = await chatWithAI(msg);
-    updateChatUI();
+    const result = await send({ action: 'chatMessage', messages: chatHistory.slice(-CONFIG.CHAT_HISTORY_LIMIT) });
+    chatHistory.push({ role: 'assistant', content: resultText(result) });
+    await chrome.storage.local.set({ chatHistory: chatHistory.slice(-CONFIG.CHAT_HISTORY_LIMIT) });
+    renderChat();
     await incrementStat('chats');
-  } catch (e) {
-    chatHistory.push({ role: 'assistant', content: `Error: ${e.message}` });
-    saveChatHistory();
-    updateChatUI();
+  } catch (exception) {
+    chatHistory.push({ role: 'assistant', content: `Error: ${exception.message}` });
+    renderChat();
   }
 }
 
-// ====== Settings & Stats ======
 function loadSettings() {
-  chrome.storage.local.get(['settings', 'hf_api_key'], (data) => {
+  chrome.storage.local.get(['settings', 'hf_api_key', 'privacyMode', 'chatHistory'], data => {
     const settings = data.settings || {};
-    const apiKey = data.hf_api_key || '';
-
-    if (settings.aiName) document.getElementById('aiNameInput').value = settings.aiName;
-    if (settings.aiTone) document.getElementById('aiToneInput').value = settings.aiTone;
-    document.getElementById('contextMemoryToggle').checked = !!settings.contextMemory;
-    document.getElementById('adaptiveResponseToggle').checked = !!settings.adaptiveResponse;
-
-    // Mask API key for security
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    if (apiKeyInput) {
-      if (apiKey && apiKey.length > 0) {
-        apiKeyInput.value = '••••••••' + apiKey.substring(apiKey.length - 4);
-      }
-    }
+    $('aiNameInput').value = settings.aiName || 'ChromeMind';
+    $('aiToneInput').value = settings.aiTone || 'friendly';
+    $('privacyModeSelect').value = data.privacyMode || settings.privacyMode || 'local-preferred';
+    $('contextMemoryToggle').checked = Boolean(settings.contextMemory);
+    $('adaptiveResponseToggle').checked = Boolean(settings.adaptiveResponse);
+    if (data.hf_api_key) $('apiKeyInput').value = `••••••••${data.hf_api_key.slice(-4)}`;
+    chatHistory = Array.isArray(data.chatHistory) ? data.chatHistory.slice(-CONFIG.CHAT_HISTORY_LIMIT) : [];
+    renderChat();
   });
 }
 
 function saveSettings() {
+  const privacyMode = $('privacyModeSelect').value;
   const settings = {
-    aiName: document.getElementById('aiNameInput').value.trim(),
-    aiTone: document.getElementById('aiToneInput').value.trim(),
-    contextMemory: document.getElementById('contextMemoryToggle').checked,
-    adaptiveResponse: document.getElementById('adaptiveResponseToggle').checked
+    aiName: $('aiNameInput').value.trim(),
+    aiTone: $('aiToneInput').value,
+    contextMemory: $('contextMemoryToggle').checked,
+    adaptiveResponse: $('adaptiveResponseToggle').checked,
+    privacyMode
   };
-
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  if (apiKeyInput && apiKeyInput.value && !apiKeyInput.value.includes('•')) {
-    // Only save if a new key was entered (not masked)
-    chrome.storage.local.set({ 'hf_api_key': apiKeyInput.value });
-  }
-
-  chrome.storage.local.set({ settings }, () => {
-    showTempStatus('Settings saved! ✅', 'settingsStatus');
-    updateAIStatus(); // Refresh AI status
-  });
-}
-
-function showTempStatus(msg, elId, duration = 1200) {
-  const el = document.getElementById(elId);
-  if (el) {
-    el.textContent = msg;
-    el.style.opacity = '1';
-    setTimeout(() => (el.style.opacity = '0'), duration);
-  }
-}
-
-function loadStats() {
-  chrome.storage.local.get(['stats'], (data) => {
-    const stats = data.stats || {};
-    document.getElementById('summaryCount').textContent = stats.summaries || 0;
-    document.getElementById('translateCount').textContent = stats.translations || 0;
-    document.getElementById('improvementCount').textContent = stats.improvements || 0;
-    document.getElementById('chatCount').textContent = stats.chats || 0;
-  });
-}
-
-function incrementStat(key) {
-  chrome.storage.local.get(['stats'], (data) => {
-    let stats = data.stats || {};
-    stats[key] = (stats[key] || 0) + 1;
-    chrome.storage.local.set({ stats }, () => loadStats());
-  });
-}
-
-function clearAllData() {
-  if (!confirm("Are you sure you want to clear all ChromeMind data? This cannot be undone.")) return;
-  chrome.storage.local.set({ stats: {}, settings: {}, chatHistory: [], hf_api_key: '' }, () => {
-    loadStats();
-    loadSettings();
-    clearChatHistory();
-    showTempStatus('All data cleared! ✅', 'settingsStatus');
+  const writes = { settings, privacyMode };
+  const key = $('apiKeyInput').value;
+  if (key && !key.includes('•')) writes.hf_api_key = key;
+  chrome.storage.local.set(writes, () => {
+    $('settingsStatus').textContent = 'Settings saved ✅';
     updateAIStatus();
   });
 }
 
-// ====== Misc ======
-function getLanguageName(code) {
-  const map = { es: 'Spanish', fr: 'French', de: 'German', ja: 'Japanese', zh: 'Chinese' };
-  return map[code] || code;
+function incrementStat(key) {
+  return new Promise(resolve =>
+    chrome.storage.local.get(['stats'], data => {
+      const stats = data.stats || {};
+      stats[key] = (stats[key] || 0) + 1;
+      chrome.storage.local.set({ stats }, () => {
+        loadStats();
+        resolve();
+      });
+    })
+  );
 }
+
+function loadStats() {
+  chrome.storage.local.get(['stats'], data => {
+    const stats = data.stats || {};
+    $('summaryCount').textContent = stats.summaries || 0;
+    $('translateCount').textContent = stats.translations || 0;
+    $('improvementCount').textContent = stats.improvements || 0;
+    $('chatCount').textContent = stats.chats || 0;
+  });
+}
+
+function clearData() {
+  if (!confirm('Clear all ChromeMind data?')) return;
+  chrome.storage.local.clear(() => {
+    chatHistory = [];
+    renderChat();
+    loadSettings();
+    loadStats();
+    updateAIStatus();
+    $('settingsStatus').textContent = 'All data cleared ✅';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupTabs();
+  loadSettings();
+  loadStats();
+  updateAIStatus();
+  $('summarizeBtn').addEventListener('click', summarize);
+  $('translateBtn').addEventListener('click', translate);
+  $('proofreadBtn').addEventListener('click', () => improve('proofreadText'));
+  $('rewriteBtn').addEventListener('click', () => improve('rewriteText'));
+  $('chatSendBtn').addEventListener('click', chat);
+  $('clrChatBtn').addEventListener('click', () => {
+    chatHistory = [];
+    renderChat();
+    chrome.storage.local.remove('chatHistory');
+  });
+  $('saveSettingsBtn').addEventListener('click', saveSettings);
+  $('clearDataBtn').addEventListener('click', clearData);
+});
