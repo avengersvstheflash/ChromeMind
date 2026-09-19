@@ -1,0 +1,9 @@
+{
+  "name": "chromemind",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "lint": "node --check src/providers/runtime.js && node --check src/background/background.js && node --check src/popup/popup.js"
+  }
+}
