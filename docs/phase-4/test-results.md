@@ -3,18 +3,16 @@
 Date: 2026-09-19
 
 ## Validation status
-- Added opt-in local activity signal storage.
-- Added sensitive-domain exclusion.
-- Added coarse category aggregation.
-- Added explainable rule-based recommendations.
-- Automated execution remains deferred by project direction.
+- Background tab activity collection connected to `tabs.onActivated` and completed `tabs.onUpdated` events.
+- Activity collection remains opt-in and disabled by default.
+- Sensitive-domain filtering occurs before storage.
+- Retention pruning and the 50-domain cap are implemented.
+- Popup controls for enable/pause, retention, delete, and recommendation dismissal are implemented.
+- Recommendation data is generated locally and remains explainable.
+- Dashboard/new-tab presentation remains deferred to a later Phase 4 slice.
 
-## Planned checks
-- Activity collection remains disabled by default.
-- Sensitive domains are never persisted.
-- Recommendation output contains no page content or full URLs.
-- Visit counts are capped to the retained domain set.
-- Dismissed recommendations can be removed locally.
+## Automated execution
+Automated execution remains intentionally deferred.
 
 ## Acceptance status
-Phase 4 initial activity-intelligence slice: **implemented and documented; execution deferred**.
+Phase 4 connected activity slice: **implemented and documented; execution deferred**.
