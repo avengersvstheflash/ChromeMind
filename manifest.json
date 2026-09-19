@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ChromeMind - AI Browser Companion",
-  "version": "1.0.0",
-  "description": "Privacy-first browser assistant using Chrome-managed on-device AI when available",
+  "name": "ChromeMind - Privacy-first Browser AI",
+  "version": "1.1.0",
+  "description": "A privacy-first Chrome assistant using Chrome-managed on-device AI with explicit cloud fallback",
   "permissions": ["activeTab", "storage", "scripting", "tabs", "contextMenus"],
   "host_permissions": ["https://api-inference.huggingface.co/*"],
   "background": { "service_worker": "src/background/background.js", "type": "module" },
