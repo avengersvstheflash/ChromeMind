@@ -2,19 +2,20 @@
 
 Date: 2026-09-19
 
-## Validation status
-- Structured content extraction implementation added.
-- Safe text-node highlighting implementation added.
-- Manifest now declares the content stylesheet and uses `document_idle`.
-- Sensitive form controls are excluded by selector policy.
-- Content length is bounded and truncation is reported.
+## Implementation validation recorded
+- Sensitive-page detection now blocks likely login, checkout, payment, billing, and password-reset pages.
+- Sensitive controls are excluded from extraction and highlighting.
+- Extraction can be disabled with the local `contentExtractionEnabled` setting.
+- Long content is bounded and chunked for later relevance selection.
+- Extraction responses include structured refusal codes and privacy metadata.
 
-## Tests
-Automated execution is intentionally deferred, per project direction. The following checks remain planned:
-- extraction fixtures for article, documentation, and navigation-heavy pages
-- sensitive-control exclusion tests
-- highlight preservation tests
-- manifest JSON and JavaScript syntax validation
+## Automated execution
+Automated execution remains intentionally deferred. Planned checks:
+- sensitive URL and sensitive-control fixtures
+- extraction opt-out behavior
+- chunk boundaries and truncation metadata
+- Range highlighting preservation
+- manifest and JavaScript validation
 
 ## Acceptance status
-Phase 2 initial content-intelligence slice: **implemented and documented; execution deferred**.
+Phase 2 privacy slice: **implemented and documented; execution deferred**.
