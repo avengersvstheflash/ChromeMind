@@ -1,221 +1,124 @@
-// src/content/content.js
-// FIXED: Proper message handling, CSS injection, and better error handling
+// ChromeMind Phase 2 content intelligence.
+// Webpage text is untrusted data. Sensitive pages and controls are excluded by default.
 
-console.log('🧠 ChromeMind content script loaded on:', window.location.href);
+const MAX_TEXT_LENGTH = 12000;
+const CHUNK_LENGTH = 2400;
+const SENSITIVE_INPUT_SELECTOR = 'input[type="password"], input[type="email"], input[type="tel"], input[autocomplete*="cc-"], textarea, [contenteditable="true"]';
+const SENSITIVE_PAGE_SELECTOR = 'input[type="password"], input[autocomplete="cc-number"], input[autocomplete="cc-csc"], [name*="card" i], [name*="cvv" i], [name*="ssn" i]';
+const SENSITIVE_URL_PATTERN = /login|signin|sign-in|checkout|payment|billing|account\/settings|password|reset-password/i;
 
-// Inject CSS for highlights and tooltips dynamically
-const styleEl = document.createElement('style');
-styleEl.textContent = `
-  .chromemind-highlight {
-    background-color: #ffeb3b;
-    padding: 2px 4px;
-    border-radius: 3px;
-    transition: all 0.3s ease;
-    outline: 1px solid #ffc107;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
-    cursor: pointer;
-  }
-  
-  .chromemind-tooltip {
-    position: absolute;
-    background: white;
-    border: 2px solid #667eea;
-    border-radius: 8px;
-    padding: 10px 15px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 14px;
-    pointer-events: auto;
-    opacity: 0.99;
-    max-width: 300px;
-    word-wrap: break-word;
-    line-height: 1.4;
-  }
-`;
-document.head.appendChild(styleEl);
-
-// Message listener for popup/background communication
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[Content Script] Received message:', request.action);
-
   if (request.action === 'getPageContent') {
-    try {
-      const content = extractPageContent();
-      const title = document.title;
-      sendResponse({
-        success: true,
-        content: content,
-        title: title,
-        url: window.location.href
-      });
-    } catch (error) {
-      console.error('[Content Script] getPageContent error:', error);
-      sendResponse({
-        success: false,
-        error: error.message
-      });
-    }
+    chrome.storage.local.get(['contentExtractionEnabled'], settings => {
+      if (settings.contentExtractionEnabled === false) {
+        sendResponse({ success: false, error: 'Page extraction is disabled in ChromeMind settings.', code: 'extraction_disabled' });
+        return;
+      }
+      const sensitive = detectSensitivePage();
+      if (sensitive.detected) {
+        sendResponse({ success: false, error: 'ChromeMind did not extract this page because it may contain sensitive information.', code: 'sensitive_page', signals: sensitive.signals });
+        return;
+      }
+      sendResponse({ success: true, ...extractPageContent(), url: window.location.href });
+    });
     return true;
   }
 
-  if (request.action === 'highlightSelection') {
-    try {
-      highlightText(request.text);
-      showBubbleTooltip('Selection highlighted!', window.getSelection());
+  try {
+    if (request.action === 'highlightSelection' || request.action === 'showTranslationResult') {
+      const text = request.action === 'showTranslationResult' ? request.originalText : request.text;
+      if (text && !detectSensitivePage().detected) highlightText(text);
+      showTooltip(request.action === 'showTranslationResult' ? `Translation: ${request.translatedText}` : 'Selection highlighted.');
       sendResponse({ success: true });
-    } catch (error) {
-      console.error('[Content Script] highlightSelection error:', error);
-      sendResponse({ success: false, error: error.message });
+      return false;
     }
-    return true;
+    sendResponse({ success: false, error: 'Unknown action', code: 'unknown_action' });
+  } catch (error) {
+    sendResponse({ success: false, error: error.message, code: 'content_script_error' });
   }
-
-  if (request.action === 'showTranslationResult') {
-    try {
-      highlightText(request.originalText);
-      showBubbleTooltip(`Translation: ${request.translatedText}`, window.getSelection());
-      sendResponse({ success: true });
-    } catch (error) {
-      console.error('[Content Script] showTranslationResult error:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-    return true;
-  }
-
-  sendResponse({ success: false, error: 'Unknown action' });
   return false;
 });
 
-/**
- * Extract main content from page
- * Tries common selectors and falls back to body
- */
+function detectSensitivePage() {
+  const signals = [];
+  if (SENSITIVE_URL_PATTERN.test(window.location.href)) signals.push('sensitive_url');
+  if (document.querySelector(SENSITIVE_PAGE_SELECTOR)) signals.push('sensitive_control');
+  if (/\b(sign in|log in|checkout|payment|credit card|social security)\b/i.test(document.body?.innerText || '')) signals.push('sensitive_text');
+  return { detected: signals.length > 0, signals };
+}
+
 function extractPageContent() {
-  const selectors = [
-    'article',
-    'main',
-    '[role="main"]',
-    '.content',
-    '.main-content',
-    '#content',
-    'body'
-  ];
+  const root = chooseContentRoot();
+  const blocks = [...root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,pre,blockquote')]
+    .filter(element => !element.closest('nav,header,footer,aside,form,dialog,[aria-hidden="true"]'))
+    .filter(element => !element.matches(SENSITIVE_INPUT_SELECTOR))
+    .map(element => {
+      const text = element.innerText?.replace(/\s+/g, ' ').trim();
+      if (!text) return '';
+      return element.tagName.toLowerCase().startsWith('h') ? `\n${text}\n` : text;
+    })
+    .filter(Boolean);
 
-  let content = '';
+  const fullText = blocks.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  const content = fullText.slice(0, MAX_TEXT_LENGTH);
+  return {
+    title: document.title,
+    content: content || 'No readable article content found on this page.',
+    chunks: chunkText(content),
+    truncated: fullText.length > MAX_TEXT_LENGTH,
+    contentType: root === document.body ? 'document' : 'article',
+    privacy: 'page-content-stays-in-extension-until-provider-policy-allows'
+  };
+}
 
-  for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      content = element.innerText;
-      break;
+function chunkText(text) {
+  const chunks = [];
+  for (let start = 0; start < text.length; start += CHUNK_LENGTH) {
+    chunks.push({ index: chunks.length, text: text.slice(start, start + CHUNK_LENGTH) });
+  }
+  return chunks;
+}
+
+function chooseContentRoot() {
+  const candidates = [...document.querySelectorAll('article, main, [role="main"], .post, .article, .entry-content')]
+    .filter(element => !element.closest('nav,header,footer,aside'));
+  return candidates.sort((a, b) => score(b) - score(a))[0] || document.body;
+}
+
+function score(element) {
+  return (element.innerText || '').length + element.querySelectorAll('p').length * 200;
+}
+
+function highlightText(text) {
+  const target = text.trim();
+  if (!target || target.length > 500) return;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue.includes(target) || node.parentElement?.closest(SENSITIVE_INPUT_SELECTOR)) return NodeFilter.FILTER_REJECT;
+      if (node.parentElement?.closest('.chromemind-highlight')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
     }
-  }
-
-  // Clean up content
-  content = content
-    .replace(/\s+/g, ' ')
-    .replace(/\n+/g, ' ')
-    .trim()
-    .slice(0, 5000);
-
-  return content || 'No content found on this page.';
+  });
+  const node = walker.nextNode();
+  if (!node) return;
+  const index = node.nodeValue.indexOf(target);
+  const range = document.createRange();
+  range.setStart(node, index);
+  range.setEnd(node, index + target.length);
+  const mark = document.createElement('mark');
+  mark.className = 'chromemind-highlight';
+  range.surroundContents(mark);
+  mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-/**
- * Highlight plain text within elements
- * Uses regex to find and wrap text in highlight span
- */
-function highlightText(text, color = '#ffeb3b') {
-  if (!text || text.length === 0) {
-    console.warn('[Content Script] No text to highlight');
-    return;
-  }
-
-  const elements = Array.from(document.querySelectorAll('body, article, main, .content, .main-content, #content'));
-
-  for (let el of elements) {
-    if (el.innerText.includes(text)) {
-      const safeText = escapeHTML(text);
-      const regex = new RegExp(escapeRegExp(text), 'gi');
-      try {
-        const html = el.innerHTML.replace(
-          regex,
-          `<span class="chromemind-highlight" title="ChromeMind highlight">$&</span>`
-        );
-        el.innerHTML = html;
-        console.log('[Content Script] Highlighted text successfully');
-        break;
-      } catch (err) {
-        console.error('[Content Script] Highlight error:', err);
-      }
-    }
-  }
-}
-
-/**
- * Escape regex special characters
- * Prevents regex injection attacks
- */
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * HTML escape to prevent XSS
- * Escapes dangerous HTML characters
- */
-function escapeHTML(str) {
-  if (!str) return '';
-  return str.replace(/[&<>"']/g, m =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])
-  );
-}
-
-/**
- * Show a floating tooltip bubble
- * Positions near the user's selection
- */
-function showBubbleTooltip(message, selection) {
-  removeExistingBubble();
-
-  let tooltip = document.createElement('div');
+function showTooltip(message) {
+  document.querySelector('.chromemind-tooltip')?.remove();
+  const tooltip = document.createElement('div');
   tooltip.className = 'chromemind-tooltip';
   tooltip.textContent = message;
-  tooltip.setAttribute('role', 'tooltip');
-  tooltip.setAttribute('aria-live', 'polite');
-
-  if (selection && selection.rangeCount > 0) {
-    try {
-      let rect = selection.getRangeAt(0).getBoundingClientRect();
-      tooltip.style.top = (window.scrollY + rect.bottom + 8) + 'px';
-      tooltip.style.left = (window.scrollX + rect.left) + 'px';
-    } catch (err) {
-      console.warn('[Content Script] Could not position tooltip:', err);
-      tooltip.style.top = '20px';
-      tooltip.style.left = '20px';
-    }
-  } else {
-    tooltip.style.top = '20px';
-    tooltip.style.left = '20px';
-  }
-
+  tooltip.setAttribute('role', 'status');
+  tooltip.style.top = `${window.scrollY + 24}px`;
+  tooltip.style.right = '24px';
   document.body.appendChild(tooltip);
-  console.log('[Content Script] Tooltip shown');
-
-  // Auto-remove after 3 seconds
-  setTimeout(removeExistingBubble, 3000);
+  setTimeout(() => tooltip.remove(), 4000);
 }
-
-/**
- * Remove existing tooltip bubble
- */
-function removeExistingBubble() {
-  let t = document.querySelector('.chromemind-tooltip');
-  if (t) {
-    t.remove();
-    console.log('[Content Script] Tooltip removed');
-  }
-}
-
-console.log('✅ ChromeMind content script ready!');
