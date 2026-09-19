@@ -1,23 +1,26 @@
 # Phase 1 — Stabilization implementation log
 
-## Scope
-Provider orchestration, structured provider failures, request timeouts, truthful backend status, privacy-aware runtime selection, bounded chat requests, duplicate CSS removal, and basic automated validation.
+## Current checkpoint: Chrome-managed AI routing
 
-## Implemented
-- Replaced the Hugging Face-named all-in-one path with `src/providers/runtime.js`.
-- Added local, Gemini Nano capability detection, and Hugging Face providers behind one `generate()` contract.
-- Added privacy policies: `local-only`, `local-preferred`, and `cloud-only`.
-- Added typed provider errors and retry classification.
-- Added request timeouts and limited retry behavior to retryable failures.
-- Added `getBackendStatus` for the popup to consume and render honest backend health.
-- Updated the popup to use provider-aware status rather than a single API-key check.
-- Added a privacy mode selector to the settings UI so user policy is persisted and enforced.
-- Bounded chat requests to the configured recent-message limit.
-- Removed JavaScript CSS injection so the manifest-declared stylesheet is authoritative.
-- Added package scripts and an initial provider prompt test.
+### Completed
+- Replaced the Hugging Face-named all-in-one path with a provider runtime.
+- Made Chrome-managed on-device AI the default provider.
+- Removed the external local-server model from the default provider order.
+- Added explicit privacy policies: `chrome-local-first`, `chrome-local-only`, and `cloud-only`.
+- Added structured provider errors, timeout handling, and retry classification.
+- Added capability status reporting for Chrome built-in AI states.
+- Routed the MV3 background service worker through `generate()` and `getBackendStatus()`.
+- Bounded chat context and kept cloud credentials in extension storage.
+- Corrected popup response handling and persisted privacy mode.
+- Removed duplicate JavaScript content-style injection.
 
-## Notes
-The Chrome built-in AI API remains capability-detected only. The extension cannot force-install or silently download Gemini Nano; Chrome controls model availability and preparation.
+## Chrome resource policy
+ChromeMind does not download, install, or bundle a model. Chrome owns model preparation, hardware acceleration, processor selection, and availability. ChromeMind only detects the exposed built-in AI API and uses it when Chrome reports it is ready.
+
+Cloud AI is an explicit opt-in fallback. `chrome-local-only` never sends prompts or page content to the cloud.
 
 ## Remaining Phase 1 work
-Add CI validation against the extension files, improve content extraction quality, and expand tests for storage, retry handling, and provider selection.
+- Add unit tests for provider policy and failure handling.
+- Run CI validation and fix environment-specific issues.
+- Perform an unpacked-extension Chrome smoke test.
+- Improve content extraction and sensitive-page handling.
