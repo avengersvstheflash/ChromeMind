@@ -19,26 +19,34 @@ ChromeMind is complete and archived — preserved as an honest portfolio piece a
 - Stores coarse activity signals locally for explainable recommendations.
 - Lets users pause activity insights, disable page extraction, dismiss recommendations, and delete local data.
 
-## Privacy model
+## Privacy Model
 
-ChromeMind is local-first, not cloud-first:
-
-1. Chrome-managed on-device AI is preferred.
-2. Chrome controls model availability, preparation, hardware acceleration, and processor usage.
-3. ChromeMind cannot force-install or silently download Gemini Nano.
-4. Cloud fallback is policy-controlled and never silent.
-5. Sensitive page extraction is blocked by default.
-6. Activity insights are opt-in and store coarse hostnames/categories only.
-7. API keys, conversations, preferences, activity signals, and dismissals remain in `chrome.storage.local`.
-8. Stored browser data is not presented as a guaranteed secure secret vault.
-
-## Privacy modes
+ChromeMind routes every request through the user's selected privacy mode, set once in the popup and persisted locally:
 
 | Mode | Behavior |
-|---|---|
-| Chrome on-device only | Use Chrome's built-in AI only; stop if unavailable. |
-| Chrome on-device first | Try Chrome AI first, then use configured cloud fallback. |
-| Cloud only | Use the configured cloud provider directly. |
+|------|----------|
+| Chrome on-device only (`chrome-local-only`) | All requests use Chrome's built-in Gemini Nano. If unavailable, no AI response is returned. Cloud is never contacted. |
+| Chrome on-device first (`chrome-local-first`, default) | Attempts Gemini Nano first. If unavailable, automatically falls back to the user-configured cloud provider. |
+| Cloud only (`cloud-only`) | Uses only the configured cloud provider. Gemini Nano is never invoked. |
+
+Every response includes metadata:
+```json
+{
+  "provider": "gemini-nano" | "huggingface" | "openrouter" | "gemini-api",
+  "privacy": "on-device" | "cloud",
+  "fallbackUsed": true | false
+}
+```
+
+In `chrome-local-first` mode, cloud fallback is automatic and not preceded by a per-request confirmation prompt. The privacy mode acts as persistent consent; every fallback is visible via `fallbackUsed: true`. Users who require strict no-cloud transmission should select `chrome-local-only`.
+
+Cloud providers are BYOK. ChromeMind does not ship keys and does not proxy through any third-party service. Verified as of v1.2.0:
+- Hugging Face — user-supplied token
+- OpenRouter — default `deepseek/deepseek-v4-flash`, live-verified HTTP 200 on 2026-09-21
+- Google Gemini API — default `gemini-3.6-flash`, live-verified HTTP 200 on 2026-09-21
+
+Sensitive pages (login, checkout, payment, billing, account settings) are refused by extraction by default. Browsing activity is stored locally as coarse domain-level signals only, opt-in, and can be paused or wiped at any time.
+
 
 ## Architecture
 

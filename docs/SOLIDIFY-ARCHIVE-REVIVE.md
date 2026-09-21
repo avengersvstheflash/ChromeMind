@@ -66,3 +66,9 @@ Bring ChromeMind back when:
 - [ ] Update manifest or provider runtime if needed
 - [ ] Re-run the demo script
 - [ ] Decide scope: quick demo vs. full revival
+
+---
+
+## Post-Archive Enhancements
+
+- **Notify-on-fallback UX**: non-blocking toast when a response returns `fallbackUsed: true`, with inline "switch to on-device only" action. Deferred to preserve assistant-style flow; current model relies on persistent privacy mode + response metadata.
