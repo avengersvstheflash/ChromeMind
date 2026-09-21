@@ -1,3 +1,5 @@
+> **Historical Notice:** This document is preserved for historical reference from the initial hackathon/Devpost prototype and does not reflect current Manifest V3 architecture or privacy models. See [README.md](../../README.md) for current documentation.
+
 # ChromeMind - Known Issues & Advanced Configuration
 
 **Detailed breakdown of limitations, future roadmap, and advanced setup options.**

@@ -1,3 +1,5 @@
+> **Historical Notice:** This document is preserved for historical reference from the initial hackathon/Devpost prototype and does not reflect current Manifest V3 architecture or privacy models. See [README.md](../../README.md) for current documentation.
+
 # ChromeMind Setup & Installation Guide
 
 **Quick reference for getting ChromeMind up and running in 5 minutes.**

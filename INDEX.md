@@ -20,4 +20,11 @@
 
 ## Legacy documentation
 
-The older Devpost-era documents remain available for historical context. They should not be treated as the authoritative description of current behavior until reconciled with the current README and release checklist.
+The original Devpost-era prototype documentation is preserved in `docs/legacy/` for historical context only:
+
+- [Advanced Configuration & Limitations](docs/legacy/ADVANCED-CONFIG.md)
+- [API & Integration Reference](docs/legacy/API-REFERENCE.md)
+- [Original ChromeMind Prototype README](docs/legacy/ChromeMind-README.md)
+- [Legacy Setup & Installation Guide](docs/legacy/SETUP-GUIDE.md)
+
+These documents describe experimental prototype behavior and do not reflect current Manifest V3 architecture, privacy models, or provider runtime options.
