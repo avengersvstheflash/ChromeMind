@@ -11,7 +11,7 @@ ChromeMind is a Manifest V3 browser assistant that uses Chrome-managed on-device
 - Chats with bounded conversation context.
 - Detects sensitive pages and avoids extracting them by default.
 - Uses Chrome-managed on-device AI first when Chrome exposes it.
-- Supports explicit cloud fallback with a user-provided Hugging Face key.
+- Supports explicit cloud fallback: Hugging Face, OpenRouter, or Google Gemini API — BYOK.
 - Stores coarse activity signals locally for explainable recommendations.
 - Lets users pause activity insights, disable page extraction, dismiss recommendations, and delete local data.
 
@@ -65,7 +65,19 @@ The extension treats webpage text as untrusted data. Page content is passed as c
 5. Choose the repository directory.
 6. Open ChromeMind from the toolbar.
 
-Cloud fallback requires a user-provided Hugging Face token. Chrome-managed AI availability depends on Chrome version, device, region, policy, and model readiness.
+Cloud fallback requires user-provided credentials (Hugging Face, OpenRouter, or Google Gemini API). Chrome-managed AI availability depends on Chrome version, device, region, policy, and model readiness.
+
+## Per-Provider Setup (BYOK)
+
+When on-device AI is unavailable or you configure cloud fallback, choose your provider under **Settings** in the extension popup:
+
+| Provider | Key Acquisition | Default Model | Details |
+|---|---|---|---|
+| **Hugging Face** | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) | `Qwen/Qwen2.5-7B-Instruct` | Serverless Inference API token |
+| **OpenRouter** | [openrouter.ai/keys](https://openrouter.ai/keys) | `openai/gpt-4o-mini` | OpenAI-compatible endpoint with hundreds of models |
+| **Google Gemini API** | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | `gemini-2.0-flash` | Google Generative Language API |
+
+You can also specify an optional model override string in Settings (e.g. `anthropic/claude-3.5-haiku` on OpenRouter or `gemini-1.5-pro` on Gemini API).
 
 ## Project status
 

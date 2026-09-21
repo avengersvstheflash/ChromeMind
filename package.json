@@ -1,10 +1,11 @@
 {
   "name": "chromemind",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "lint": "node --check src/providers/runtime.js && node --check src/background/background.js && node --check src/popup/popup.js",
+    "lint": "node --check src/providers/runtime.js && node --check src/providers/openrouter.js && node --check src/providers/gemini-api.js && node --check src/background/background.js && node --check src/popup/popup.js",
     "pack": "node scripts/pack.js"
   },
   "devDependencies": {

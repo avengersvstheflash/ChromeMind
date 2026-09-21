@@ -1,10 +1,14 @@
 {
   "manifest_version": 3,
   "name": "ChromeMind - Privacy-first Browser AI",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A privacy-first Chrome assistant using Chrome-managed on-device AI with explicit cloud fallback",
   "permissions": ["activeTab", "storage", "scripting", "tabs", "contextMenus"],
-  "host_permissions": ["https://api-inference.huggingface.co/*"],
+  "host_permissions": [
+    "https://api-inference.huggingface.co/*",
+    "https://openrouter.ai/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
   "background": { "service_worker": "src/background/background.js", "type": "module" },
   "action": { "default_popup": "src/popup/popup.html" },
   "content_scripts": [{
