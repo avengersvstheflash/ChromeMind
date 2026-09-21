@@ -6,6 +6,9 @@
 **Status:** Production-ready hybrid LLM extension  
 **Architecture:** 3-tier fallback (Local → Gemini Nano → Cloud)
 
+![ChromeMind Prototype Architecture](assets/chromemind_architecture.png)
+![ChromeMind Prototype Matrix](assets/chromemind_matrix.png)
+
 ---
 
 ## Quick Start (TL;DR)
