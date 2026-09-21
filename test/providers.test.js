@@ -69,7 +69,7 @@ test('missing-key availability tests for openrouter, gemini, and huggingface', (
   assert.equal(isCloudConfigured({ cloudProvider: 'huggingface', hf_api_key: 'hf_123' }), true);
 
   assert.equal(geminiApi.getCapabilities().defaultModel, 'gemini-3.6-flash');
-  assert.equal(openrouter.getCapabilities().defaultModel, 'openai/gpt-4o-mini');
+  assert.equal(openrouter.getCapabilities().defaultModel, 'deepseek/deepseek-v4-flash');
 });
 
 test('mocked fetch verifies OpenRouter request URL, headers, and body shape', async () => {
@@ -90,7 +90,7 @@ test('mocked fetch verifies OpenRouter request URL, headers, and body shape', as
 
     const result = await openrouter.generate(
       [{ role: 'user', content: 'Hi OpenRouter' }],
-      { apiKey: 'sk-or-test-key', model: 'openai/gpt-4o-mini' }
+      { apiKey: 'sk-or-test-key', model: 'deepseek/deepseek-v4-flash' }
     );
 
     assert.equal(result, 'Mock OpenRouter response');
@@ -101,7 +101,7 @@ test('mocked fetch verifies OpenRouter request URL, headers, and body shape', as
     assert.equal(capturedOptions.headers['HTTP-Referer'], 'https://github.com/avengersvstheflash/ChromeMind');
     assert.equal(capturedOptions.headers['X-Title'], 'ChromeMind');
     const parsedBody = JSON.parse(capturedOptions.body);
-    assert.equal(parsedBody.model, 'openai/gpt-4o-mini');
+    assert.equal(parsedBody.model, 'deepseek/deepseek-v4-flash');
     assert.deepEqual(parsedBody.messages, [{ role: 'user', content: 'Hi OpenRouter' }]);
   } finally {
     globalThis.fetch = originalFetch;

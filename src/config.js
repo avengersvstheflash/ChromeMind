@@ -9,7 +9,7 @@ export const CONFIG = {
 
   // Cloud fallback providers
   DEFAULT_CLOUD_PROVIDER: 'huggingface',
-  DEFAULT_OPENROUTER_MODEL: 'openai/gpt-4o-mini',
+  DEFAULT_OPENROUTER_MODEL: 'deepseek/deepseek-v4-flash',
   DEFAULT_GEMINI_MODEL: 'gemini-3.6-flash',
 
   // Hugging Face settings
