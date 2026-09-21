@@ -4,6 +4,10 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "lint": "node --check src/providers/runtime.js && node --check src/background/background.js && node --check src/popup/popup.js"
+    "lint": "node --check src/providers/runtime.js && node --check src/background/background.js && node --check src/popup/popup.js",
+    "pack": "node scripts/pack.js"
+  },
+  "devDependencies": {
+    "archiver": "^7.0.1"
   }
 }
