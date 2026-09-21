@@ -10,7 +10,7 @@ export const CONFIG = {
   // Cloud fallback providers
   DEFAULT_CLOUD_PROVIDER: 'huggingface',
   DEFAULT_OPENROUTER_MODEL: 'openai/gpt-4o-mini',
-  DEFAULT_GEMINI_MODEL: 'gemini-2.0-flash',
+  DEFAULT_GEMINI_MODEL: 'gemini-3.6-flash',
 
   // Hugging Face settings
   HF_API_URL: 'https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct',

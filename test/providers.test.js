@@ -67,6 +67,9 @@ test('missing-key availability tests for openrouter, gemini, and huggingface', (
   assert.equal(isCloudConfigured({ cloudProvider: 'gemini-api', geminiApiKey: 'AIzaSy123' }), true);
   assert.equal(isCloudConfigured({ cloudProvider: 'huggingface', hf_api_key: '' }), false);
   assert.equal(isCloudConfigured({ cloudProvider: 'huggingface', hf_api_key: 'hf_123' }), true);
+
+  assert.equal(geminiApi.getCapabilities().defaultModel, 'gemini-3.6-flash');
+  assert.equal(openrouter.getCapabilities().defaultModel, 'openai/gpt-4o-mini');
 });
 
 test('mocked fetch verifies OpenRouter request URL, headers, and body shape', async () => {
@@ -123,11 +126,11 @@ test('mocked fetch verifies Gemini API request URL with key and body shape', asy
 
     const result = await geminiApi.generate(
       [{ role: 'user', content: 'Hello Gemini' }, { role: 'assistant', content: 'Hi' }],
-      { apiKey: 'AIzaSyTestKey', model: 'gemini-2.0-flash' }
+      { apiKey: 'AIzaSyTestKey', model: 'gemini-3.6-flash' }
     );
 
     assert.equal(result, 'Mock Gemini response');
-    assert.ok(capturedUrl.startsWith('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'));
+    assert.ok(capturedUrl.startsWith('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent'));
     assert.ok(capturedUrl.includes('key=AIzaSyTestKey'));
     assert.equal(capturedOptions.method, 'POST');
     assert.equal(capturedOptions.headers['Content-Type'], 'application/json');

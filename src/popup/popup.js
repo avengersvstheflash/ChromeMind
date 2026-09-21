@@ -6,7 +6,7 @@ const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '
 const DEFAULT_MODELS = {
   'huggingface': 'Qwen/Qwen2.5-7B-Instruct',
   'openrouter': 'openai/gpt-4o-mini',
-  'gemini-api': 'gemini-2.0-flash'
+  'gemini-api': 'gemini-3.6-flash'
 };
 
 const PROVIDER_NAMES = {

@@ -75,7 +75,7 @@ When on-device AI is unavailable or you configure cloud fallback, choose your pr
 |---|---|---|---|
 | **Hugging Face** | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) | `Qwen/Qwen2.5-7B-Instruct` | Serverless Inference API token |
 | **OpenRouter** | [openrouter.ai/keys](https://openrouter.ai/keys) | `openai/gpt-4o-mini` | OpenAI-compatible endpoint with hundreds of models |
-| **Google Gemini API** | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | `gemini-2.0-flash` | Google Generative Language API |
+| **Google Gemini API** | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | `gemini-3.6-flash` | Google Generative Language API |
 
 You can also specify an optional model override string in Settings (e.g. `anthropic/claude-3.5-haiku` on OpenRouter or `gemini-1.5-pro` on Gemini API).
 
