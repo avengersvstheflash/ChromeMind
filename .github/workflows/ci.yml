@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Validate manifest.json
-        run: node -e "const fs = require('fs'); const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8')); if (!manifest.name || !manifest.version || manifest.manifest_version !== 3) { throw new Error('Invalid manifest.json'); } console.log('manifest.json is valid MV3: v' + manifest.version);"
+        run: node scripts/validate-manifest.js
 
       - name: Run lint (syntax validation)
         run: npm run lint
