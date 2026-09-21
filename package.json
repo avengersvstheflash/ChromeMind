@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "lint": "node --check src/providers/runtime.js && node --check src/providers/openrouter.js && node --check src/providers/gemini-api.js && node --check src/background/background.js && node --check src/popup/popup.js",
+    "lint": "node --check src/providers/runtime.js && node --check src/providers/openrouter.js && node --check src/providers/gemini-api.js && node --check src/background/background.js && node --check src/popup/popup.js && node --check src/content/extractor-utils.js && node --check src/content/content.js && node --check src/activity/activity-utils.js && node --check src/activity/activity-store.js && node --check src/activity/recommendation-engine.js",
     "pack": "node scripts/pack.js",
     "smoke": "node scripts/smoke-test-providers.js"
   },

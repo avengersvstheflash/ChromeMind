@@ -1,11 +1,16 @@
 // ChromeMind Phase 2 content intelligence.
 // Webpage text is untrusted data. Sensitive pages and controls are excluded by default.
 
-const MAX_TEXT_LENGTH = 12000;
-const CHUNK_LENGTH = 2400;
-const SENSITIVE_INPUT_SELECTOR = 'input[type="password"], input[type="email"], input[type="tel"], input[autocomplete*="cc-"], textarea, [contenteditable="true"]';
-const SENSITIVE_PAGE_SELECTOR = 'input[type="password"], input[autocomplete="cc-number"], input[autocomplete="cc-csc"], [name*="card" i], [name*="cvv" i], [name*="ssn" i]';
-const SENSITIVE_URL_PATTERN = /login|signin|sign-in|checkout|payment|billing|account\/settings|password|reset-password/i;
+import {
+  isSensitiveUrl,
+  isSensitiveControl,
+  chunkText,
+  scoreContentNode,
+  MAX_TEXT_LENGTH,
+  CHUNK_LENGTH,
+  SENSITIVE_INPUT_SELECTOR,
+  SENSITIVE_PAGE_SELECTOR
+} from './extractor-utils.js';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getPageContent') {
@@ -41,7 +46,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function detectSensitivePage() {
   const signals = [];
-  if (SENSITIVE_URL_PATTERN.test(window.location.href)) signals.push('sensitive_url');
+  if (isSensitiveUrl(window.location.href)) signals.push('sensitive_url');
   if (document.querySelector(SENSITIVE_PAGE_SELECTOR)) signals.push('sensitive_control');
   if (/\b(sign in|log in|checkout|payment|credit card|social security)\b/i.test(document.body?.innerText || '')) signals.push('sensitive_text');
   return { detected: signals.length > 0, signals };
@@ -51,7 +56,7 @@ function extractPageContent() {
   const root = chooseContentRoot();
   const blocks = [...root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,pre,blockquote')]
     .filter(element => !element.closest('nav,header,footer,aside,form,dialog,[aria-hidden="true"]'))
-    .filter(element => !element.matches(SENSITIVE_INPUT_SELECTOR))
+    .filter(element => !isSensitiveControl(element) && !element.matches(SENSITIVE_INPUT_SELECTOR))
     .map(element => {
       const text = element.innerText?.replace(/\s+/g, ' ').trim();
       if (!text) return '';
@@ -64,29 +69,17 @@ function extractPageContent() {
   return {
     title: document.title,
     content: content || 'No readable article content found on this page.',
-    chunks: chunkText(content),
+    chunks: chunkText(content, MAX_TEXT_LENGTH, CHUNK_LENGTH),
     truncated: fullText.length > MAX_TEXT_LENGTH,
     contentType: root === document.body ? 'document' : 'article',
     privacy: 'page-content-stays-in-extension-until-provider-policy-allows'
   };
 }
 
-function chunkText(text) {
-  const chunks = [];
-  for (let start = 0; start < text.length; start += CHUNK_LENGTH) {
-    chunks.push({ index: chunks.length, text: text.slice(start, start + CHUNK_LENGTH) });
-  }
-  return chunks;
-}
-
 function chooseContentRoot() {
   const candidates = [...document.querySelectorAll('article, main, [role="main"], .post, .article, .entry-content')]
     .filter(element => !element.closest('nav,header,footer,aside'));
-  return candidates.sort((a, b) => score(b) - score(a))[0] || document.body;
-}
-
-function score(element) {
-  return (element.innerText || '').length + element.querySelectorAll('p').length * 200;
+  return candidates.sort((a, b) => scoreContentNode(b) - scoreContentNode(a))[0] || document.body;
 }
 
 function highlightText(text) {
@@ -94,7 +87,7 @@ function highlightText(text) {
   if (!target || target.length > 500) return;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
-      if (!node.nodeValue.includes(target) || node.parentElement?.closest(SENSITIVE_INPUT_SELECTOR)) return NodeFilter.FILTER_REJECT;
+      if (!node.nodeValue.includes(target) || node.parentElement?.closest(SENSITIVE_INPUT_SELECTOR) || isSensitiveControl(node.parentElement)) return NodeFilter.FILTER_REJECT;
       if (node.parentElement?.closest('.chromemind-highlight')) return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     }
