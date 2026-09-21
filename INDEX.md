@@ -8,6 +8,7 @@
 - [Data flow](docs/phase-5/data-flow.md) — architecture and trust boundaries
 - [Demo script](docs/phase-5/demo-script.md) — reproducible portfolio walkthrough
 - [Release checklist](docs/phase-5/release-checklist.md) — publication readiness
+- [Test results](docs/phase-5/test-results.md) — verification record and test suites
 - [Solidify, Archive, Revive](docs/SOLIDIFY-ARCHIVE-REVIVE.md) — project lifecycle, archive state, and revival guide
 
 ## Phase logs
