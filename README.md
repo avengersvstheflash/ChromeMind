@@ -106,6 +106,7 @@ A strong demo should show:
 - [Phase 4 logs](docs/phase-4/implementation-log.md)
 - [Phase 5 implementation log](docs/phase-5/implementation-log.md)
 - [Phase 5 release checklist](docs/phase-5/release-checklist.md)
+- [Solidify, Archive, Revive](docs/SOLIDIFY-ARCHIVE-REVIVE.md) — project lifecycle and revival guide
 
 ## License
 
